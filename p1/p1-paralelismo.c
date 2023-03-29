@@ -28,8 +28,33 @@ int sumArray(int* array, int size){
     return sum;
 }
 
-int main(int argc, char *argv[])
-{
+void algoSec(int argc, char** argv){
+    if(argc != 3){
+        printf("Numero incorrecto de parametros\nLa sintaxis debe ser: program n L\n  program es el nombre del ejecutable\n  n es el tamaño de la cadena a generar\n  L es la letra de la que se quiere contar apariciones (A, C, G o T)\n");
+        exit(1); 
+    }
+      
+    int i, n, count=0;
+    char *cadena;
+    char L;
+
+    n = atoi(argv[1]);
+    L = *argv[2];
+    
+    cadena = (char *) malloc(n*sizeof(char));   //todos las van a ejecutar 
+    inicializaCadena(cadena, n);                //por esta linea esta en plural la de arriba
+    
+    for(i=0; i<n; i++){
+        if(cadena[i] == L){
+          count++;
+        }
+    }
+    
+    printf("El numero de apariciones de la letra %c es %d\n", L, count);
+    free(cadena);
+}
+
+void algoMPI(int argc, char** argv){
     if(argc != 3){
         printf("Numero incorrecto de parametros\nLa sintaxis debe ser: program n L\n  program es el nombre del ejecutable\n  n es el tamaño de la cadena a generar\n  L es la letra de la que se quiere contar apariciones (A, C, G o T)\n");
         exit(1); 
@@ -45,43 +70,64 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    
+    printf("<ID: %d/%d> -- 1\n", rank, numprocs);
     int individualCount = 0;
 
-    if (my_id == 0){
+    if (rank == 0){
         n = atoi(argv[1]); //numero de procesos
         L = *argv[2];
         arrayCount = malloc(sizeof(int) * numprocs);
+        
+        // n y L se envian con send al resto de procesos.
+        for (i=1; i<numprocs; i++){ 
+            MPI_Send(&n, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            MPI_Send(&L, 1, MPI_CHAR, i, 0, MPI_COMM_WORLD);
+        }
+    }
+    else{ //el resto de procesos reciben n y L
+        MPI_Recv(&n, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&L, 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
     
-    // n y L se envian con send al resto de procesos. //////////////// PENDIENTE ///////////////////////  
+    printf("<ID: %d/%d> -- 2\n", rank, numprocs);
 
     cadena = (char *) malloc(n*sizeof(char));
     inicializaCadena(cadena, n);
     
-    
     for (iterator = 0; iterator < n; iterator += numprocs){
-        if(cadena[iterator + rank] == L){
-          individualCount += 1; //aqui hay que usar otro contador
+        //nos aseguramos de no salirnos del array
+        if(iterator+rank < n && cadena[iterator + rank] == L){
+          individualCount += 1;
         }
     }
     
-    //receive x 3 -> 0
-    if (my_id == 0){
-        for (i = 0; i < numprocs; i++){
+    printf("<ID: %d/%d> -- 3\n", rank, numprocs);
+    
+    //receive x numprocs -1 -> 0
+    if (rank == 0){
+        arrayCount[0] = individualCount;
+        for (i = 1; i < numprocs; i++){
             MPI_Recv(&arrayCount[i], 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
         count = sumArray(arrayCount, numprocs);
     }
-    //send x 3 -> 1,2,3
+    //send-> proc hermanos
     else{
-        ////////////// SIN TERMINAR ///////////////
         MPI_Send(&individualCount, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }
     
-  
-    printf("El numero de apariciones de la letra %c es %d\n", L, count);
+    printf("<ID: %d/%d> -- 4\n", rank, numprocs);
+    
+    if (rank == 0)
+        printf("El numero de apariciones de la letra %c es %d\n", L, count);
     free(cadena);
-    exit(0);
+    
+    MPI_Finalize();
+}
+
+int main(int argc, char *argv[])
+{
+    //Aqui queda hacer una interfaz para elegir entre algoMPI y algoSec, y hacer pruebas con varias combinaciones de longitud de cadena y num de proc
+    algoMPI(argc, argv);
 }
 
