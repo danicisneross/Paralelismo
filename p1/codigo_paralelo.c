@@ -44,7 +44,7 @@ void algoMPI(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    printf("<ID: %d/%d> -- 1\n", rank, numprocs);
+    //printf("<ID: %d/%d> -- 1\n", rank, numprocs);
     int individualCount = 0;
 
     if (rank == 0){
@@ -63,7 +63,7 @@ void algoMPI(int argc, char** argv){
         MPI_Recv(&L, 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
     
-    printf("<ID: %d/%d> -- 2\n", rank, numprocs);
+    //printf("<ID: %d/%d> -- 2\n", rank, numprocs);
 
     cadena = (char *) malloc(n*sizeof(char));
     inicializaCadena(cadena, n);
@@ -75,7 +75,7 @@ void algoMPI(int argc, char** argv){
         }
     }
     
-    printf("<ID: %d/%d> -- 3\n", rank, numprocs);
+    //printf("<ID: %d/%d> -- 3\n", rank, numprocs);
     
     //receive x numprocs -1 -> 0
     if (rank == 0){
@@ -90,18 +90,16 @@ void algoMPI(int argc, char** argv){
         MPI_Send(&individualCount, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }
     
-    printf("<ID: %d/%d> -- 4\n", rank, numprocs);
+    //printf("<ID: %d/%d> -- 4\n", rank, numprocs);
     
     if (rank == 0)
-        printf("El numero de apariciones de la letra %c es %d\n", L, count);
+        printf("MPI (%d): El numero de apariciones de la letra %c es %d\n", numprocs, L, count);
     free(cadena);
     
     MPI_Finalize();
 }
 
 int main(int argc, char *argv[]){
-    
     //Llamamos al algoritmo paralelo
     algoMPI(argc, argv);
 }
-

@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
         }
     }
     
-    printf("El numero de apariciones de la letra %c es %d\n", L, count);
+    printf("Sec:     El numero de apariciones de la letra %c es %d\n", L, count);
     free(cadena);
     exit(0);
 }
