@@ -28,6 +28,27 @@ int sumArray(int* array, int size){
     return sum;
 }
 
+int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm){
+    // SALVAGUARDAS, COMPROBAR QUE EL PROCESO EXISTE
+    int numprocs, i, rank, power;
+
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int pasos = ceil(log10(numprocs)/log10(2));
+
+    for (i=1; i <= pasos; i++){
+        power = pow(2, i-1);
+        if (rank < power){
+            //Send
+            MPI_Send(buffer, count, datatype, rank + power, 0, comm);
+        }
+        else if (rank < pow(2, i)){
+            //Receive
+            MPI_Recv(buffer, count, datatype, rank - power, 0, comm, MPI_STATUS_IGNORE);
+        }
+    }
+}
+
 void algoMPI(int argc, char** argv){
     if(argc != 3){
         printf("Numero incorrecto de parametros\nLa sintaxis debe ser: program n L\n  program es el nombre del ejecutable\n  n es el tamaño de la cadena a generar\n  L es la letra de la que se quiere contar apariciones (A, C, G o T)\n");
@@ -99,7 +120,26 @@ void algoMPI(int argc, char** argv){
     MPI_Finalize();
 }
 
+void funcion_chorra(int argc, char** argv){
+    int numprocs, rank, n;
+
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0){
+        n = 8;   
+    }
+
+    MPI_BinomialBcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    printf("Proceso %d, valor %d\n", rank, n);
+    MPI_Finalize();
+}
+
 int main(int argc, char *argv[]){
     //Llamamos al algoritmo paralelo
-    algoMPI(argc, argv);
+    //algoMPI(argc, argv);
+    funcion_chorra(argc, argv);
 }
