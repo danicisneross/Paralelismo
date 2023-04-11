@@ -157,7 +157,7 @@ void comparacion(){
 int main(int argc, char *argv[]){
     //Aqui queda hacer una interfaz para elegir entre algoMPI y algoSec, y hacer pruebas con varias combinaciones de longitud de cadena y num de proc
     
-    comparacion;
+    comparacion();
 
     return 0;
 }

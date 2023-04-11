@@ -28,32 +28,6 @@ int sumArray(int* array, int size){
     return sum;
 }
 
-void algoSec(int argc, char** argv){
-    if(argc != 3){
-        printf("Numero incorrecto de parametros\nLa sintaxis debe ser: program n L\n  program es el nombre del ejecutable\n  n es el tamaño de la cadena a generar\n  L es la letra de la que se quiere contar apariciones (A, C, G o T)\n");
-        exit(1); 
-    }
-      
-    int i, n, count=0;
-    char *cadena;
-    char L;
-
-    n = atoi(argv[1]);
-    L = *argv[2];
-    
-    cadena = (char *) malloc(n*sizeof(char));   //todos las van a ejecutar 
-    inicializaCadena(cadena, n);                //por esta linea esta en plural la de arriba
-    
-    for(i=0; i<n; i++){
-        if(cadena[i] == L){
-          count++;
-        }
-    }
-    
-    printf("El numero de apariciones de la letra %c es %d\n", L, count);
-    free(cadena);
-}
-
 void algoMPI(int argc, char** argv){
     if(argc != 3){
         printf("Numero incorrecto de parametros\nLa sintaxis debe ser: program n L\n  program es el nombre del ejecutable\n  n es el tamaño de la cadena a generar\n  L es la letra de la que se quiere contar apariciones (A, C, G o T)\n");
@@ -125,9 +99,9 @@ void algoMPI(int argc, char** argv){
     MPI_Finalize();
 }
 
-int main(int argc, char *argv[])
-{
-    //Aqui queda hacer una interfaz para elegir entre algoMPI y algoSec, y hacer pruebas con varias combinaciones de longitud de cadena y num de proc
+int main(int argc, char *argv[]){
+    
+    //Llamamos al algoritmo paralelo
     algoMPI(argc, argv);
 }
 

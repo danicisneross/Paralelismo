@@ -18,7 +18,6 @@ void inicializaCadena(char *cadena, int n){
     }
 }
 
-
 int main(int argc, char *argv[]){
     if(argc != 3){
         printf("Numero incorrecto de parametros\nLa sintaxis debe ser: program n L\n  program es el nombre del ejecutable\n  n es el tamaño de la cadena a generar\n  L es la letra de la que se quiere contar apariciones (A, C, G o T)\n");
