@@ -29,8 +29,7 @@ int sumArray(int* array, int size){
 }
 
 int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm){
-    // SALVAGUARDAS, COMPROBAR QUE EL PROCESO EXISTE
-    int numprocs, i, rank, power;
+    int numprocs, i, rank, power, err;
 
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -40,13 +39,56 @@ int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root,
         power = pow(2, i-1);
         if (rank < power){
             //Send
-            MPI_Send(buffer, count, datatype, rank + power, 0, comm);
+            if (rank + power < numprocs)
+                err = MPI_Send(buffer, count, datatype, rank + power, 0, comm);
+                if (err != 0)
+                    return err;
         }
         else if (rank < pow(2, i)){
             //Receive
-            MPI_Recv(buffer, count, datatype, rank - power, 0, comm, MPI_STATUS_IGNORE);
+            err = MPI_Recv(buffer, count, datatype, rank - power, 0, comm, MPI_STATUS_IGNORE);
+            if (err != 0)
+                return err;
         }
     }
+
+    return 0;
+}
+
+int MPI_FlattreeColectiva(void *sendbuf, void *recvbuf, int count,
+    MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm){
+    int numprocs, i, rank, power, res = 0, err;
+    int* buf = (int*) sendbuf;
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int pasos = ceil(log10(numprocs)/log10(2));
+
+    for (i = pasos; i >= 1; i--){
+        power = pow(2, i-1);
+
+        if (rank < power){
+            //Recv
+            if (rank + power < numprocs){
+                err = MPI_Recv(&res, count, datatype, rank + power, 0, comm, MPI_STATUS_IGNORE);
+                if (err != 0){
+                    printf("Error: %d\n", err);
+                    return err;
+                }
+                *buf += res;
+
+                if (i == 1){
+                    *(int*) recvbuf = *buf;
+                }
+            }
+        }
+        else if (rank < pow(2, i)){
+            err = MPI_Send((void*) buf, count, datatype, rank - power, 0, comm);
+            if (err != 0)
+                return err;
+        }
+    }
+
+    return 0;
 }
 
 void algoMPI(int argc, char** argv){
@@ -121,8 +163,7 @@ void algoMPI(int argc, char** argv){
 }
 
 void funcion_chorra(int argc, char** argv){
-    int numprocs, rank, n;
-
+    int numprocs, rank, n, res = 1;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
@@ -135,6 +176,12 @@ void funcion_chorra(int argc, char** argv){
     MPI_BinomialBcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     printf("Proceso %d, valor %d\n", rank, n);
+
+    MPI_FlattreeColectiva(&n, &res, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (rank == 0)
+        printf("Resultado: %d\n", res);
+    
     MPI_Finalize();
 }
 
