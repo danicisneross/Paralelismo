@@ -39,10 +39,11 @@ int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root,
         power = pow(2, i-1);
         if (rank < power){
             //Send
-            if (rank + power < numprocs)
+            if (rank + power < numprocs){
                 err = MPI_Send(buffer, count, datatype, rank + power, 0, comm);
                 if (err != 0)
                     return err;
+            }
         }
         else if (rank < pow(2, i)){
             //Receive
@@ -97,36 +98,24 @@ void algoMPI(int argc, char** argv){
         exit(1); 
     }
     
-    int i, n, iterator, count=0; //count es el contador global (proceso 0)
+    int n, iterator, individualCount = 0, count=0; //count es el contador global (proceso 0)
     char *cadena;
     char L;
-    int* arrayCount;
     int numprocs, rank;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    //printf("<ID: %d/%d> -- 1\n", rank, numprocs);
-    int individualCount = 0;
-
+    
     if (rank == 0){
         n = atoi(argv[1]); //numero de procesos
         L = *argv[2];
-        arrayCount = malloc(sizeof(int) * numprocs);
-        
-        // n y L se envian con send al resto de procesos.
-        for (i=1; i<numprocs; i++){ 
-            MPI_Send(&n, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-            MPI_Send(&L, 1, MPI_CHAR, i, 0, MPI_COMM_WORLD);
-        }
     }
-    else{ //el resto de procesos reciben n y L
-        MPI_Recv(&n, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&L, 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
-    
-    //printf("<ID: %d/%d> -- 2\n", rank, numprocs);
+    MPI_BinomialBcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_BinomialBcast(&L, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    //MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    //MPI_Bcast(&L, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
     cadena = (char *) malloc(n*sizeof(char));
     inicializaCadena(cadena, n);
@@ -138,22 +127,8 @@ void algoMPI(int argc, char** argv){
         }
     }
     
-    //printf("<ID: %d/%d> -- 3\n", rank, numprocs);
-    
-    //receive x numprocs -1 -> 0
-    if (rank == 0){
-        arrayCount[0] = individualCount;
-        for (i = 1; i < numprocs; i++){
-            MPI_Recv(&arrayCount[i], 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
-        count = sumArray(arrayCount, numprocs);
-    }
-    //send-> proc hermanos
-    else{
-        MPI_Send(&individualCount, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-    }
-    
-    //printf("<ID: %d/%d> -- 4\n", rank, numprocs);
+    MPI_FlattreeColectiva(&individualCount, &count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    //MPI_Reduce(&individualCount, &count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     
     if (rank == 0)
         printf("MPI (%d): El numero de apariciones de la letra %c es %d\n", numprocs, L, count);
@@ -162,7 +137,7 @@ void algoMPI(int argc, char** argv){
     MPI_Finalize();
 }
 
-void funcion_chorra(int argc, char** argv){
+void funcion_prueba(int argc, char** argv){
     int numprocs, rank, n, res = 1;
 
     MPI_Init(&argc, &argv);
@@ -181,12 +156,12 @@ void funcion_chorra(int argc, char** argv){
 
     if (rank == 0)
         printf("Resultado: %d\n", res);
-    
+
     MPI_Finalize();
 }
 
 int main(int argc, char *argv[]){
     //Llamamos al algoritmo paralelo
-    //algoMPI(argc, argv);
-    funcion_chorra(argc, argv);
+    algoMPI(argc, argv);
+    //funcion_prueba(argc, argv);
 }

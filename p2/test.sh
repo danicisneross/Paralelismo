@@ -2,12 +2,12 @@
 
 #Ejecutamos este script en terminal escribiendo: bash test.sh
 
-mpicc codigo_paralelo.c -o codigo_paralelo
+mpicc codigo_paralelo.c -o codigo_paralelo -lm
 gcc codigo_secuencial.c -o codigo_secuencial
 
 # Definimos los parametros que van a variar
 length=(10 13 21 100)
-num_procs=(2 4 6)
+num_procs=(2 5 6)
 letter=('A' 'C' 'G' 'T')
 
 for l in "${length[@]}"
