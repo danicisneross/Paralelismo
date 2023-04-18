@@ -33,22 +33,28 @@ int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root,
 
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    /*El número de iteraciones que necesitamos*/
     int pasos = ceil(log10(numprocs)/log10(2));
 
     for (i=1; i <= pasos; i++){
+        /* Receptor = rank -> emisor = rank - power
+           Emisor = rank -> receptor = rank + power */
         power = pow(2, i-1);
         if (rank < power){
             //Send
-            if (rank + power < numprocs){
+            if (rank + power < numprocs){ //Salvaguarda
                 err = MPI_Send(buffer, count, datatype, rank + power, 0, comm);
-                if (err != 0)
+                if (err != 0) //Control del error
                     return err;
             }
         }
         else if (rank < pow(2, i)){
             //Receive
+            /*no es necesario un salvaguarda (recibimos de un rank menor al 
+            nuestro*/
             err = MPI_Recv(buffer, count, datatype, rank - power, 0, comm, MPI_STATUS_IGNORE);
-            if (err != 0)
+            if (err != 0) //Control del error
                 return err;
         }
     }
@@ -59,32 +65,37 @@ int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root,
 int MPI_FlattreeColectiva(void *sendbuf, void *recvbuf, int count,
     MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm){
     int numprocs, i, rank, power, res = 0, err;
+    //No modificamos sendbuf, trabajamos con una copia
     int* buf = (int*) sendbuf;
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int pasos = ceil(log10(numprocs)/log10(2));
 
+    //Realizamos la op inversa a BinomialBcast
     for (i = pasos; i >= 1; i--){
+        /* Receptor = rank -> emisor = rank + power
+           Emisor = rank -> receptor = rank - power */
         power = pow(2, i-1);
 
         if (rank < power){
             //Recv
-            if (rank + power < numprocs){
+            if (rank + power < numprocs){ //Salvaguarda
                 err = MPI_Recv(&res, count, datatype, rank + power, 0, comm, MPI_STATUS_IGNORE);
-                if (err != 0){
+                if (err != 0){ //Control del error
                     printf("Error: %d\n", err);
                     return err;
                 }
-                *buf += res;
+                *buf += res; //Sumamos a nuestro valor el valor recibido
 
-                if (i == 1){
+                if (i == 1){ //i = 1 -> última iteración. Proc 0 escribe el res
                     *(int*) recvbuf = *buf;
                 }
             }
         }
         else if (rank < pow(2, i)){
+            //Send
             err = MPI_Send((void*) buf, count, datatype, rank - power, 0, comm);
-            if (err != 0)
+            if (err != 0) //Control del error
                 return err;
         }
     }
@@ -107,19 +118,24 @@ void algoMPI(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    
+    // El proceso 0 es el único que inicializa n y L con los argumentos
     if (rank == 0){
         n = atoi(argv[1]); //numero de procesos
         L = *argv[2];
     }
+
+    //El proceso 0 envía el valor de n y L al resto de procesos
     MPI_BinomialBcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_BinomialBcast(&L, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
     //MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     //MPI_Bcast(&L, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
+    //Cada proceso inicializa su propia cadena (con el mismo contenido)
     cadena = (char *) malloc(n*sizeof(char));
     inicializaCadena(cadena, n);
     
+    /*Cada proceso cuenta el número de apariciones de una letra
+    en un segmento de la cadena*/
     for (iterator = 0; iterator < n; iterator += numprocs){
         //nos aseguramos de no salirnos del array
         if(iterator+rank < n && cadena[iterator + rank] == L){
@@ -127,9 +143,12 @@ void algoMPI(int argc, char** argv){
         }
     }
     
+    /*El proceso 0 suma los resultados individuales de cada proceso y almacena
+    el resultado en count*/
     MPI_FlattreeColectiva(&individualCount, &count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     //MPI_Reduce(&individualCount, &count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     
+    //Imprime el resultado por pantalla
     if (rank == 0)
         printf("MPI (%d): El numero de apariciones de la letra %c es %d\n", numprocs, L, count);
     free(cadena);
@@ -148,12 +167,17 @@ void funcion_prueba(int argc, char** argv){
         n = 8;   
     }
 
+    //Pasamos el valor de n al resto de procesos (n = 8)
     MPI_BinomialBcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+    //Comprobamos que el valor es el deseado (todos deben imprimir el mismo)
     printf("Proceso %d, valor %d\n", rank, n);
 
+    // Suma el valor de n de todos los procesos
+    // En la variable res el proceso 0 debería tener n * numprocs
     MPI_FlattreeColectiva(&n, &res, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
+    //Comprobamos que el valor es correcto
     if (rank == 0)
         printf("Resultado: %d\n", res);
 
