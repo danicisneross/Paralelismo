@@ -41,24 +41,35 @@ void algoMPI(int argc, char** argv){
     int numprocs, rank;
 
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs); //obtenemos el numero de procesos
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //obtenemos el identificador de cada proceso
 
     //printf("<ID: %d/%d> -- 1\n", rank, numprocs);
     int individualCount = 0;
 
-    if (rank == 0){
+    if (rank == 0){ //proceso principal
         n = atoi(argv[1]); //numero de procesos
-        L = *argv[2];
+        L = *argv[2]; //letra a contar
         arrayCount = malloc(sizeof(int) * numprocs);
         
         // n y L se envian con send al resto de procesos.
         for (i=1; i<numprocs; i++){ 
+            /*int MPI_Send ( void * buff , int count , MPI_Datatype datatype ,
+int dest , int tag , MPI_Comm comm ) ;
+	    -COUNT --> num elementos a enviar
+	    -i --> id de procesor que reciben*/
+        
             MPI_Send(&n, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&L, 1, MPI_CHAR, i, 0, MPI_COMM_WORLD);
         }
     }
     else{ //el resto de procesos reciben n y L
+    	/*int MPI_Recv ( void * buff , int count , MPI_Datatype datatype ,int source , int tag , MPI_Comm comm , MPI_Status * status ); 
+    	-COUNT --> num de elementos que se esperan recibir
+    	-MPI_INT --> tipo de dato que se espera recibir (en este caso un entero)
+    	-source --> id del proceso que envia el mensaje
+    	*/
+    	
         MPI_Recv(&n, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&L, 1, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
@@ -68,7 +79,7 @@ void algoMPI(int argc, char** argv){
     cadena = (char *) malloc(n*sizeof(char));
     inicializaCadena(cadena, n);
     
-    for (iterator = 0; iterator < n; iterator += numprocs){
+    for (iterator = 0; iterator < n; iterator += numprocs){ //iterator aunmenta en incrementos iguales al numero de procesos???  
         //nos aseguramos de no salirnos del array
         if(iterator+rank < n && cadena[iterator + rank] == L){
           individualCount += 1;
@@ -81,9 +92,10 @@ void algoMPI(int argc, char** argv){
     if (rank == 0){
         arrayCount[0] = individualCount;
         for (i = 1; i < numprocs; i++){
+       	    //Recibimos los valores de los procesos secundarios
             MPI_Recv(&arrayCount[i], 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
-        count = sumArray(arrayCount, numprocs);
+        count = sumArray(arrayCount, numprocs); //sumamos todos los resultados de todos los procesos
     }
     //send-> proc hermanos
     else{
@@ -92,11 +104,11 @@ void algoMPI(int argc, char** argv){
     
     //printf("<ID: %d/%d> -- 4\n", rank, numprocs);
     
-    if (rank == 0)
+    if (rank == 0) //llegamos a que recibio todos los resultados de los demas procesos y por ende podemos imprimir el conteo total
         printf("MPI (%d): El numero de apariciones de la letra %c es %d\n", numprocs, L, count);
     free(cadena);
     
-    MPI_Finalize();
+    MPI_Finalize(); //finalizamos el ambiante MPI --> liberamos los recursos asociados con MPI, como los comunicadores, los grupos de procesos y los buffers de comunicación.
 }
 
 int main(int argc, char *argv[]){
