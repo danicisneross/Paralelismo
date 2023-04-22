@@ -76,10 +76,11 @@ int dest , int tag , MPI_Comm comm ) ;
     
     //printf("<ID: %d/%d> -- 2\n", rank, numprocs);
 
+    //Cada proceso inicializa su propia cadena (con el mismo contenido)
     cadena = (char *) malloc(n*sizeof(char));
     inicializaCadena(cadena, n);
     
-    for (iterator = 0; iterator < n; iterator += numprocs){ //iterator aunmenta en incrementos iguales al numero de procesos???  
+    for (iterator = 0; iterator < n; iterator += numprocs){ //iterator aunmenta en incrementos iguales al numero de procesos  
         //nos aseguramos de no salirnos del array
         if(iterator+rank < n && cadena[iterator + rank] == L){
           individualCount += 1;
