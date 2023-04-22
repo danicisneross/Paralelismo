@@ -28,20 +28,21 @@ int sumArray(int* array, int size){
     return sum;
 }
 
+/*root --> identificador del proceso raiz que envia los datos*/
 int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm){
     int numprocs, i, rank, power, err;
 
-    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs); //obtenemos el numero de procesos
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //obtenemos el identificador de cada proceso
 
     /*El número de iteraciones que necesitamos*/
-    int pasos = ceil(log10(numprocs)/log10(2));
+    int pasos = ceil(log10(numprocs)/log10(2)); //ceil redondea hacia arriba
 
     for (i=1; i <= pasos; i++){
         /* Receptor = rank -> emisor = rank - power
            Emisor = rank -> receptor = rank + power */
         power = pow(2, i-1);
-        if (rank < power){
+        if (rank < power){ 
             //Send
             if (rank + power < numprocs){ //Salvaguarda
                 err = MPI_Send(buffer, count, datatype, rank + power, 0, comm);
@@ -58,17 +59,20 @@ int MPI_BinomialBcast (void *buffer, int count, MPI_Datatype datatype, int root,
                 return err;
         }
     }
-
     return 0;
 }
 
 int MPI_FlattreeColectiva(void *sendbuf, void *recvbuf, int count,
     MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm){
+    
     int numprocs, i, rank, power, res = 0, err;
     //No modificamos sendbuf, trabajamos con una copia
     int* buf = (int*) sendbuf;
-    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs); //obtenemos el numero de procesos
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); //obtenemos el identificador de cada proceso
+
+    /*El número de iteraciones que necesitamos*/
     int pasos = ceil(log10(numprocs)/log10(2));
 
     //Realizamos la op inversa a BinomialBcast
@@ -121,12 +125,13 @@ void algoMPI(int argc, char** argv){
     // El proceso 0 es el único que inicializa n y L con los argumentos
     if (rank == 0){
         n = atoi(argv[1]); //numero de procesos
-        L = *argv[2];
+        L = *argv[2]; //letra a contar
     }
 
     //El proceso 0 envía el valor de n y L al resto de procesos
     MPI_BinomialBcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_BinomialBcast(&L, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    
     //MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     //MPI_Bcast(&L, 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 
@@ -146,6 +151,7 @@ void algoMPI(int argc, char** argv){
     /*El proceso 0 suma los resultados individuales de cada proceso y almacena
     el resultado en count*/
     MPI_FlattreeColectiva(&individualCount, &count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    
     //MPI_Reduce(&individualCount, &count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     
     //Imprime el resultado por pantalla
