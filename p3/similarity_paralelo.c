@@ -3,7 +3,7 @@
 #include <sys/time.h>
 #include <mpi.h>
 
-#define DEBUG 1
+#define DEBUG 2
 
 /* Translation of the DNA bases
    A -> 0
@@ -12,7 +12,7 @@
    T -> 3
    N -> 4*/
 
-#define M  1000000 // Number of sequences
+#define M  10 // Number of sequences
 #define N  200  // Number of bases per sequence
 
 unsigned int g_seed = 0;
@@ -123,30 +123,29 @@ int main(int argc, char *argv[] ) {
 
     microseconds += (tv2.tv_usec - tv1.tv_usec) + 1000000 * (tv2.tv_sec - tv1.tv_sec);
 
+
     /* Display result */
-    if (DEBUG == 1) {
-        if(rank == 0){
+    if (rank == 0){
+        if (DEBUG == 1) {
             int checksum = 0;
 
             for(i=0;i<M;i++) {
                 checksum += result[i];
             }  
-            printf("Checksum: %d\n ", checksum);
-        }
-    } else if (DEBUG == 2) {
-        if (rank == 0){
-            for(i = 0; i < M*N; i++){
-              printf(" %d \t ",result[i]);
-            }
-        }
-    } else {
-        printf ("Time (seconds) of communication = %lf\n", (double) microseconds/1E6);
-        printf ("Time (seconds) of computing = %lf\n", (double) microseconds2/1E6);
-    }    
+            printf("Parallel checksum: %d\n ", checksum);
 
-    if (rank == 0){
+        } else if (DEBUG == 2) {
+            for(i = 0; i < M*N; i++){
+                printf("Parallel: %d \t \n",result[i]);
+            }
+        } else {
+            printf ("\nParallel with process %d: Time (seconds) of communication = %lf\n", numprocs, (double) microseconds/1E6);
+            printf ("\nParallel with process %d: Time (seconds) of computing = %lf\n",  numprocs, (double) microseconds2/1E6);
+        }    
+
         free(data1); free(data2); 
-    }
+    }    
+        
     free(result_scatter); free(d1_scatterBuff); free(d2_scatterBuff);
 
     MPI_Finalize();
