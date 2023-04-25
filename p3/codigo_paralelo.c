@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <mpi.h>
 
-#define DEBUG 0
+#define DEBUG 1
 
 /* Translation of the DNA bases
    A -> 0
@@ -24,94 +25,119 @@ int fast_rand(void) {
 // The distance between two bases
 int base_distance(int base1, int base2){
 
-  if((base1 == 4) || (base2 == 4)){
-    return 3;
-  }
+    if((base1 == 4) || (base2 == 4)){
+        return 3;
+    }
 
-  if(base1 == base2) {
-    return 0;
-  }
+    if(base1 == base2) {
+        return 0;
+    }
 
-  if((base1 == 0) && (base2 == 3)) {
-    return 1;
-  }
+    if((base1 == 0) && (base2 == 3)) {
+        return 1;
+    }
 
-  if((base2 == 0) && (base1 == 3)) {
-    return 1;
-  }
+    if((base2 == 0) && (base1 == 3)) {
+        return 1;
+    }
 
-  if((base1 == 1) && (base2 == 2)) {
-    return 1;
-  }
+    if((base1 == 1) && (base2 == 2)) {
+        return 1;
+    }
 
-  if((base2 == 2) && (base1 == 1)) {
-    return 1;
-  }
-
-  return 2;
+    if((base2 == 2) && (base1 == 1)) {
+        return 1;
+    }
+    return 2;
 }
 
 int main(int argc, char *argv[] ) {
 
-  int i, j, numprocs, rank;
-  int *data1, *data2;
-  int *result;
-  struct timeval  tv1, tv2;
-  int rows = M/numprocs;
+    int i, j, numprocs, rank, checksum_extra;
+    int *data1, *data2, *d1_scatterBuff, *d2_scatterBuff, *result;
+    struct timeval  tv1, tv2;
+    int rows = M/numprocs;
 
-  //Inicializacion de MPI
-  MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    //Inicializacion de MPI
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  data1 = (int *) malloc(M*N*sizeof(int));
-  data2 = (int *) malloc(M*N*sizeof(int));
-  result = (int *) malloc(M*sizeof(int));
-
-  /* Initialize Matrices */
-  if(rank == 0){
-    for(i=0;i<rows;i++) {
-      for(j=0;j<N;j++) {
-      /* random with 20% gap proportion */
-      data1[i*N+j] = fast_rand();
-      data2[i*N+j] = fast_rand();
-      }
+    /* Initialize Matrices */
+    if(rank == 0){
+        data1 = (int *) malloc(M*N*sizeof(int));
+        data2 = (int *) malloc(M*N*sizeof(int));
+      
+        for(i=0;i<M;i++) {
+            for(j=0;j<N;j++) {
+            /* random with 20% gap proportion */
+            data1[i*N+j] = fast_rand();
+            data2[i*N+j] = fast_rand();
+            }
+        }
     }
-  }
 
-  MPI_Bcast(data1, M*N, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(data2, M*N, MPI_INT, 0, MPI_COMM_WORLD);
+    d1_scatterBuff = (int *) malloc((rows*N)*sizeof(int));
+    d2_scatterBuff = (int *) malloc((rows*N)sizeof(int));
+    result_scatter = (int *) malloc((rows)*sizeof(int));
 
+    gettimeofday(&tv1, NULL);
 
-  gettimeofday(&tv1, NULL);
+    MPI_Scatter(data1, rows, MPI_INT, d1_scatterBuff, rows, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(data2, rows, MPI_INT, d2_scatterBuff, rows, MPI_INT, 0, MPI_COMM_WORLD);
 
-  for(i = rows*rank; i < rows*(rank+1); i++){
-     result[i] = 0;
-     for(j=0;j<N;j++) {
-          result[i] += base_distance(data1[i*N+j], data2[i*N+j]);
-     }
-  }
+    gettimeofday(&tv2, NULL);
 
-  gettimeofday(&tv2, NULL);
-    
-  int microseconds = (tv2.tv_usec - tv1.tv_usec)+ 1000000 * (tv2.tv_sec - tv1.tv_sec);
+    int microseconds = (tv2.tv_usec - tv1.tv_usec) + 1000000 * (tv2.tv_sec - tv1.tv_sec);
 
-  /* Display result */
-  if (DEBUG == 1) {
-    int checksum = 0;
+    gettimeofday(&tv1, NULL);
 
-    MPI_Reduce(result, &checksum, M, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    
-    printf("Checksum: %d\n ", checksum);
-  } else if (DEBUG == 2) {
-    for(i = rows*rank; i < rows*(rank+1); i++){
-      printf(" %d \t ",result[i]);
+    for(i = 0; i < rows; i++){
+        result_scatter[i] = 0;
+        for(j=0;j<N;j++) {
+              result_scatter[i] += base_distance(d1_scatterBuff[i*N+j], d2_scatterBuff[i*N+j]);
+        } 
     }
-  } else {
-    printf ("Time (seconds) = %lf\n", (double) microseconds/1E6);
-  }    
 
-  free(data1); free(data2); free(result);
+    if(rank == 0){
+        for(i = rows*numprocs; i < M; i++){
+            for(j=0;j<N;j++) {
+                result += base_distance(data1[i*N+j], data2[i*N+j]);
+            }
+        }
+    }
 
-  return 0;
+    gettimeofday(&tv2, NULL);
+      
+    int microseconds2 = (tv2.tv_usec - tv1.tv_usec)+ 1000000 * (tv2.tv_sec - tv1.tv_sec);
+
+    /* Display result */
+    if (DEBUG == 1) {
+        int checksum = 0;
+
+        gettimeofday(&tv1, NULL);
+
+        MPI_Gather(result_scatter, rows, MPI_INT, &checksum, rows, MPI_INT, 0, MPI_COMM_WORLD);
+        
+        gettimeofday(&tv2, NULL);
+
+        int microseconds += (tv2.tv_usec - tv1.tv_usec) + 1000000 * (tv2.tv_sec - tv1.tv_sec);
+
+        if(rank == 0){
+          printf("Checksum: %d\n ", checksum);
+        }
+    } else if (DEBUG == 2) {
+        for(i = 0; i < rows; i++){
+          printf(" %d \t ",result_scatter[i]);
+        }
+    } else {
+        printf ("Time (seconds) of communication = %lf\n", (double) microseconds/1E6);
+        printf ("Time (seconds) of computing = %lf\n", (double) microseconds2/1E6);
+    }    
+
+    free(data1); free(data2); free(result_scatter); free(d1_scatterBuff); free(d2_scatterBuff);
+
+    MPI_Finalize();
+
+    return 0;
 }

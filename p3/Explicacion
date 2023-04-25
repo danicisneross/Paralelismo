@@ -1,0 +1,47 @@
+Vamos a trocear la matriz y repartirla 
+
+Los dos conjuntos tienen que tener el mismo tamaño
+
+M/p --> debe funcionar siendo o no multiplo de M. 
+
+CUANDO p no es multiplo de M --> 
+
+ESTRATEGIAS: 
+
+	1. redondeado hacia arriba --> N = 10; M = 11; numproc=3 
+		rows = 11/3 = 4. 
+		-PADDING --> Proceso2 hace menos carga.
+		
+	2. redondeado hacia abajo --> N = 10; M = 11; numproc=3 
+		rows = 11/3 = 3.
+		-SOBRANTE --> Px tiene mas carga.
+		
+	3. SCATTER V --> Todos hacen la misma carga mas menos 1 fila. 
+		SendBuff --> 
+		sendcnts --> array de numeros, datos a mandar cuantos numeros mandamos. Pocisiones de elementos es el proceso. Elemento 1 --> proceso 0.
+		displs --> indicar los desplzamientos. APARTIR DE DONDE MANDA. Que sume de 4.	
+
+Distribuir los datos con operaciones colectivas --> MPI_Scatter() sedent --> repartir los datos para cada proceso. 
+
+Recoleccion del vector resultado con operaciones colectivas --> MPI_Gather() --> recoje los trozos y los concatena.
+
+MPI_Scatter() y MPI_Gather()  --> son contrarios.
+
+
+MPI_Scatter() --> limitaciones. 1. Envia en orden. 	2. siempre envia la msima cantidad de elementos.
+
+MPI_Scatterv() y MPI_Gatherv(). El 0 tiene que hacer los arrays. Los que no son el 0 tienen que saber cuanto tienen que recibir.
+
+timiestapm antes del scatter y despues--> se hace una resta 
+
+timiestapm antes del gather y despues--> se hace una suma
+
+timiestapm antes del suma y despues--> se hace una resta y se obtiene el valor de computacion 
+
+Para recojer los tiempos y hacer la media --> MPI_Reduce().  
+
+If(rank < M mod numProcs){
+
+	redonde
+
+}
