@@ -3,7 +3,7 @@
 #include <sys/time.h>
 #include <mpi.h>
 
-#define DEBUG 0
+#define DEBUG 1
 
 /* Translation of the DNA bases
    A -> 0
@@ -151,7 +151,7 @@ int main(int argc, char *argv[] ) {
             printf ("Parallel with process %d: Time (seconds) of computing = %lf\n",  numprocs, (double) microseconds2/1E6);
         }    
 
-        free(data1); free(data2); 
+        free(data1); free(data2); free(result);
     }    
         
     free(result_scatter); free(d1_scatterBuff); free(d2_scatterBuff);
