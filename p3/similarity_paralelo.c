@@ -3,7 +3,7 @@
 #include <sys/time.h>
 #include <mpi.h>
 
-#define DEBUG 2
+#define DEBUG 0
 
 /* Translation of the DNA bases
    A -> 0
@@ -56,6 +56,7 @@ int main(int argc, char *argv[] ) {
     int i, j, numprocs, rank;
     int *data1, *data2, *d1_scatterBuff, *d2_scatterBuff, *result_scatter;
     int *result; //esto almacena todo, de aqui se saca checksum
+    int comp_mean = 0, comm_mean = 0; //la media de los tiempos
     struct timeval  tv1, tv2;
 
     //Inicializacion de MPI
@@ -85,8 +86,8 @@ int main(int argc, char *argv[] ) {
 
     gettimeofday(&tv1, NULL);
 
-    MPI_Scatter(data1, rows, MPI_INT, d1_scatterBuff, rows, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Scatter(data2, rows, MPI_INT, d2_scatterBuff, rows, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(data1, rows*N, MPI_INT, d1_scatterBuff, rows*N, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(data2, rows*N, MPI_INT, d2_scatterBuff, rows*N, MPI_INT, 0, MPI_COMM_WORLD);
 
     gettimeofday(&tv2, NULL);
 
@@ -104,6 +105,7 @@ int main(int argc, char *argv[] ) {
     //extra
     if(rank == 0){
         for(i = rows*numprocs; i < M; i++){
+            result[i] = 0;
             for(j=0;j<N;j++) {
                 result[i] += base_distance(data1[i*N+j], data2[i*N+j]);
             }
@@ -123,6 +125,10 @@ int main(int argc, char *argv[] ) {
 
     microseconds += (tv2.tv_usec - tv1.tv_usec) + 1000000 * (tv2.tv_sec - tv1.tv_sec);
 
+    //Calculamos la media de los diferentes tiempos
+    MPI_Reduce(&microseconds, &comm_mean, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&microseconds2, &comp_mean, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
 
     /* Display result */
     if (rank == 0){
@@ -132,15 +138,17 @@ int main(int argc, char *argv[] ) {
             for(i=0;i<M;i++) {
                 checksum += result[i];
             }  
-            printf("Parallel checksum: %d\n ", checksum);
+            printf(" Parallel checksum: %d\n ", checksum);
 
         } else if (DEBUG == 2) {
             for(i = 0; i < M*N; i++){
                 printf("Parallel: %d \t \n",result[i]);
             }
         } else {
-            printf ("\nParallel with process %d: Time (seconds) of communication = %lf\n", numprocs, (double) microseconds/1E6);
-            printf ("\nParallel with process %d: Time (seconds) of computing = %lf\n",  numprocs, (double) microseconds2/1E6);
+            comm_mean = comm_mean / numprocs;
+            comp_mean = comp_mean / numprocs;
+            printf ("Parallel with process %d: Time (seconds) of communication = %lf\n", numprocs, (double) comm_mean/1E6);
+            printf ("Parallel with process %d: Time (seconds) of computing = %lf\n",  numprocs, (double) microseconds2/1E6);
         }    
 
         free(data1); free(data2); 

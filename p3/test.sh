@@ -6,7 +6,7 @@ mpicc similarity_paralelo.c -o similarity_paralelo
 gcc similarity.c -o similarity
 
 # Definimos los parametros que van a variar
-num_procs=4
+num_procs=(1 2 3 4 5)
 
 #Ejecutamos el alg_secuencial
     ./similarity
@@ -15,5 +15,4 @@ for p in "${num_procs[@]}"
 do 
     #Ejecutamos el alg_paralelo 
     mpirun -np $p similarity_paralelo
-done 
-echo ""    
+done   
