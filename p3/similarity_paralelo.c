@@ -3,7 +3,7 @@
 #include <sys/time.h>
 #include <mpi.h>
 
-#define DEBUG 1
+#define DEBUG 0
 
 /* Translation of the DNA bases
    A -> 0
@@ -169,7 +169,7 @@ int main(int argc, char *argv[] ) {
             comm_mean = comm_mean / numprocs;
             comp_mean = comp_mean / numprocs;
             printf ("Parallel with process %d: Time (seconds) of communication = %lf\n", numprocs, (double) comm_mean/1E6);
-            printf ("Parallel with process %d: Time (seconds) of computing = %lf\n",  numprocs, (double) microseconds2/1E6);
+            printf ("Parallel with process %d: Time (seconds) of computing = %lf\n",  numprocs, (double) comp_mean/1E6);
         }    
 
         free(data1); free(data2); free(result);

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define DEBUG 1
+#define DEBUG 0
 
 /* Translation of the DNA bases
    A -> 0
