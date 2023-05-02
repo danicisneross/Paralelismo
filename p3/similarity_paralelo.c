@@ -17,38 +17,47 @@
 
 unsigned int g_seed = 0;
 
+/******************
+FUNCTION: fast_rand
+*******************
+    Genera un numero pseudoaleatortio.
+*/
 int fast_rand(void) {
     g_seed = (214013*g_seed+2531011);
     return (g_seed>>16) % 5;
 }
 
-// The distance between two bases
+/**********************
+FUNCTION: base_distance
+***********************
+    The distance between two bases.
+*/
 int base_distance(int base1, int base2){
 
-    if((base1 == 4) || (base2 == 4)){
+    if((base1 == 4) || (base2 == 4)){       //si una de las bases es N (desconocida)
         return 3;
     }
 
-    if(base1 == base2) {
+    if(base1 == base2) {       //si son iguales
         return 0;
     }
 
-    if((base1 == 0) && (base2 == 3)) {
+    if((base1 == 0) && (base2 == 3)) {      //son diferentes pero solo difieren en una letra
         return 1;
     }
 
-    if((base2 == 0) && (base1 == 3)) {
+    if((base2 == 0) && (base1 == 3)) {      //son diferentes pero solo difieren en una letra
         return 1;
     }
 
-    if((base1 == 1) && (base2 == 2)) {
+    if((base1 == 1) && (base2 == 2)) {      //son diferentes pero solo difieren en una letra
         return 1;
     }
 
-    if((base2 == 2) && (base1 == 1)) {
+    if((base2 == 2) && (base1 == 1)) {      //son diferentes pero solo difieren en una letra
         return 1;
     }
-    return 2;
+    return 2;       //son diferentes y difieren por mas de una letra
 }
 
 int main(int argc, char *argv[] ) {
@@ -61,8 +70,8 @@ int main(int argc, char *argv[] ) {
 
     //Inicializacion de MPI
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);   //obtenemos el numero de procesos
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);   //obtenemos el identificador de cada proceso
 
     int rows = M/numprocs;
     /* Initialize Matrices */
@@ -86,6 +95,11 @@ int main(int argc, char *argv[] ) {
 
     gettimeofday(&tv1, NULL);
 
+    /* MPI_Scatter (void *buff,         int sendcnt,            MPI_Datatype sendtype,      void *recvbuff,      int recvcnt,         MPI_Datatype recvtype,        int root,        MPI_Comm comm); 
+                      datos a       numero de elementos         tipo de dato a enviar.      dir del buff de   numero de elementos        tipo de dato que       proceso que manda 
+                      enviar.       a enviar a cada proceso.                                   recepcion.         en el buff.               se recibe.              los datos.
+    */
+
     MPI_Scatter(data1, rows*N, MPI_INT, d1_scatterBuff, rows*N, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Scatter(data2, rows*N, MPI_INT, d2_scatterBuff, rows*N, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -102,7 +116,7 @@ int main(int argc, char *argv[] ) {
         } 
     }
 
-    //extra
+    //Calculo de las filas restantes que no fueron asignadas a ningun proceso
     if(rank == 0){
         for(i = rows*numprocs; i < M; i++){
             result[i] = 0;
@@ -118,12 +132,19 @@ int main(int argc, char *argv[] ) {
 
     gettimeofday(&tv1, NULL);
 
+    /*MPI_Gather ( void *buff,           int sendcnt,       MPI_Datatype sendtype,   void *recvbuff,        int recvcnt,         MPI_Datatype recvtype,     int root,       MPI_Comm comm) ;
+                  dir de inicio        num de elementos     tipo de dato a enviar.   dir del buff de      num de elementos         tipo de dato que      proceso que hace
+                del bufer de envio        que recibe                                    recepcion.    para cualquier recepcion       se recibe             la recepcion
+    */
+
     //concatenamos los resultados individuales
     MPI_Gather(result_scatter, rows, MPI_INT, result, rows, MPI_INT, 0, MPI_COMM_WORLD);
         
     gettimeofday(&tv2, NULL);
 
     microseconds += (tv2.tv_usec - tv1.tv_usec) + 1000000 * (tv2.tv_sec - tv1.tv_sec);
+
+    /* MPI_Reduce (void *buff, void *recvbuff, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm) */
 
     //Calculamos la media de los diferentes tiempos
     MPI_Reduce(&microseconds, &comm_mean, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
